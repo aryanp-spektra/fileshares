@@ -1,0 +1,4 @@
+CustomerName,InvoiceNumber,Amount,DueDate,Status
+Acme Corp,INV-2025-001,2450.0,2025-06-01,Open
+BlueSky Ltd,INV-2025-002,890.0,2025-06-15,Open
+NovaTech Inc,INV-2025-003,3200.0,2025-07-01,Open
