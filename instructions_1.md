@@ -20,7 +20,7 @@ Confirm these before touching Challenge 1. If any fail, everything downstream fa
 - [ ] Copilot Studio license active, `https://copilotstudio.microsoft.com` loads, ODL environment selectable
 - [x] **AI Builder / "Create text with GPT using a prompt" credits** — confirmed covered by the Copilot Studio + base Office 365 license every participant gets. Run one throwaway flow with just this action to smoke-test it resolves in practice, but this is no longer an open risk.
 - [ ] Confirm `Q2C-Lab-Source-Data.xlsx` (or the CSVs) is present in the VM image for participants to use in Section 2
-- [ ] Confirm you have Teams access and can create a channel named **Contoso Sales Alerts** (needed for Challenge 5)
+- [ ] Confirm you have Teams access — Challenge 4/5 alerts now post as 1:1 DMs to the salesperson rather than to a shared channel, so no channel needs to be pre-created
 - [ ] Confirm you're ready to self-send test emails to your own monitored inbox (not from an external account) — this is the confirmed test methodology and it changes a required condition in Challenge 4 (see Section 4)
 
 ---
@@ -169,7 +169,7 @@ Your job is strictly limited to handling inbound quote requests. You do not answ
 
 Before drafting or referencing any pricing information, you must retrieve live data from the SharePoint Product Catalog. Never estimate, guess, or recall pricing from memory - always look it up.
 
-Every quote you produce must include: product SKU, unit price, quantity, line total, GST at 10%, and a final total amount (line total plus GST).
+Every quote you produce must include: product SKU, unit price, quantity, line total, GST at 18%, and a final total amount (line total plus GST). Prices are in Indian Rupees (₹).
 
 Maintain a professional, concise tone appropriate for B2B sales correspondence at all times. Do not use casual language, emojis, or overly enthusiastic phrasing.
 ```
@@ -336,7 +336,7 @@ add(outputs('LineTotal'), outputs('GSTAmount'))
 ### 4.5 Manual test — confirm exact numbers
 - [ ] Click **Test** (top right) → **Manually** → **Save & Test**
 - [ ] Enter `ProductKeyword` = `Office Chair`, `Quantity` = `3`
-- [ ] Run and confirm the output: **SKU = CS-001, UnitPrice = 299, LineTotal = 897, GSTAmount = 89.7, Total = 986.7**
+- [ ] Run and confirm the output: **SKU = CS-001, UnitPrice = 299, LineTotal = 897, GSTAmount = 161.46, Total = 1058.46** (GST is now 18%, matching the confirmed Microsoft reference — not the earlier 10% used in initial drafts)
 - [ ] Run again with `ProductKeyword` = `Widget`, `Quantity` = `1` — confirm the No-branch fallback message returns instead of an error
 
 ### 4.6 Register the action in Copilot Studio
@@ -353,11 +353,11 @@ Here's your pricing:
 
 **Product:** {ProductName}
 **SKU:** {SKU}
-**Unit Price:** ${UnitPrice}
+**Unit Price:** ₹{UnitPrice}
 **Quantity:** {Quantity}
-**Line Total:** ${LineTotal}
-**GST (10%):** ${GSTAmount}
-**Total:** ${Total}
+**Line Total:** ₹{LineTotal}
+**GST (18%):** ₹{GSTAmount}
+**Total:** ₹{Total}
 ```
 - [ ] Save
 
@@ -369,11 +369,11 @@ Here's your pricing:
 
 ---
 
-## 5. Challenge 04 — Outlook Trigger and AI-Drafted Quote Reply
+## 5. Challenge 04 — Outlook Trigger, Confirmation, Multi-Item Pricing, and AI-Drafted Quote Reply
 
-**Time budget to test against:** 45 min — tightest budget relative to step count (7 multi-part steps); time yourself honestly.
+**Time budget to test against:** 45 min originally — this challenge now has real added scope (a confirmation step, multi-item parsing and a pricing loop) versus the original single-product design. Time yourself honestly and expect this may need more than 45 minutes; flag it if so rather than rushing past incomplete testing.
 
-**Build location — try natively in Copilot Studio Agent Flows first, but verify reliability before committing.** Agent Flows support event-based triggers including new-email arrival, and building here keeps everything in one designer, matching the current product experience. However, real-world reports flag that Copilot Studio's Outlook event triggers are still preview-grade in some tenants and can batch or fire non-deterministically. **Recommended approach for your feasibility check:** build it in Agent Flows first, run the live test in 5.7, and if the trigger doesn't fire reliably within a reasonable window, rebuild the same logic as a classic Power Automate cloud flow at `https://make.powerautomate.com` using the identical "When a new email arrives (V3)" trigger — that path is mature and well-tested. Document which path you land on, since it affects how challenge-4.md should be worded for participants.
+**Build location — try natively in Copilot Studio Agent Flows first, but verify reliability before committing.** Agent Flows support event-based triggers including new-email arrival, and building here keeps everything in one designer, matching the current product experience. However, real-world reports flag that Copilot Studio's Outlook event triggers are still preview-grade in some tenants and can batch or fire non-deterministically. **Recommended approach for your feasibility check:** build it in Agent Flows first, run the live test in 5.9, and if the trigger doesn't fire reliably within a reasonable window, rebuild the same logic as a classic Power Automate cloud flow at `https://make.powerautomate.com` using the identical "When a new email arrives (V3)" trigger — that path is mature and well-tested. Document which path you land on, since it affects how challenge-4.md should be worded for participants.
 
 ### 5.1 Create the trigger
 - [ ] In Copilot Studio → **Contoso Q2C Assistant** → **Flows** → **+ Add a flow** → trigger: search `Outlook` and select **When a new email arrives** (or the closest equivalent Agent Flow trigger)
@@ -399,16 +399,81 @@ Here's your pricing:
 ```
 *(If your connector exposes a separate display-name field, use that instead for a cleaner name — check the dynamic content picker for a "From Name" field first.)*
 
-### 5.4 Look up pricing inline
-- [ ] Add **Get items** (SharePoint) → Site: Contoso Q2C Site, List: `Product Catalog`
-- [ ] Filter Query (advanced options) — same pattern as Challenge 3, but matching against the email body since there's no structured ProductKeyword input here. For the first working version, hardcode a test product name to prove the pipeline end-to-end, e.g.:
+### 5.4 NEW — Confirmation card before acting (matches the confirmed reference)
+This is new scope: rather than jumping straight from detection to drafting, post a confirmation card to the salesperson and wait for approval first — the same "Post adaptive card and wait for a response" pattern you'll also use in Challenge 5, just targeted at a person instead of a channel.
+
+- [ ] Add **Post adaptive card and wait for a response** (Microsoft Teams connector)
+- [ ] **Post as**: Flow bot; **Post in**: **Chat with Flow bot** (1:1, matching the same DM pattern used in Challenge 5's overdue alerts)
+- [ ] **Recipient**: the salesperson's own account (same monitored inbox owner, for lab testing purposes)
+- [ ] Card JSON (paste into the raw JSON view, inserting dynamic content for the bracketed tokens):
+```json
+{
+  "type": "AdaptiveCard",
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+  "version": "1.4",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "New quote request detected",
+      "weight": "Bolder",
+      "size": "Medium"
+    },
+    {
+      "type": "TextBlock",
+      "text": "@{variables('SenderName')} has requested a quote. Shall I check pricing and draft a reply?",
+      "wrap": true
+    }
+  ],
+  "actions": [
+    { "type": "Action.Submit", "title": "Approve", "data": { "action": "approve" } },
+    { "type": "Action.Submit", "title": "View Catalog", "data": { "action": "view_catalog" } }
+  ]
+}
 ```
-substringof('Office Chair', ProductName)
+- [ ] Add **Condition** after this action, advanced mode:
 ```
-*(Note: this is a simplification for getting the flow working — Challenge 6 revisits proper multi-format parsing. Document this as a known limitation of the first build, not a bug.)*
-- [ ] Add **Compose** `LineTotal`: `mul(body('Get_items')?['value'][0]?['UnitPrice'], 3)` *(hardcode Quantity=3 for the first test pass, matching your test email)*
-- [ ] Add **Compose** `GSTAmount`: `mul(outputs('LineTotal'), div(body('Get_items')?['value'][0]?['GSTPercent'], 100))`
-- [ ] Add **Compose** `Total`: `add(outputs('LineTotal'), outputs('GSTAmount'))`
+@equals(body('Post_adaptive_card_and_wait_for_a_response')?['data']?['action'], 'approve')
+```
+- [ ] **No branch:** add a **Terminate** action (Status = Succeeded) — if not approved, stop here rather than drafting anything
+- [ ] **Yes branch:** continue with the steps below
+
+### 5.5 Extract line items with AI (multi-item parsing — replaces the old single hardcoded product)
+This is the real scope change from the original single-product design: the confirmed reference shows a customer asking for multiple products in one email (e.g. 20 chairs + 5 desks), so the flow needs to pull out a list, not one hardcoded item.
+
+- [ ] Add step: search `AI Builder`, select **Create text with GPT using a prompt**
+- [ ] Prompt (insert the email body as dynamic content at `[[EMAIL BODY]]`):
+```
+Extract every product and quantity mentioned in the email below. Respond with ONLY a JSON array, no other text, in this exact format: [{"product":"<product name as mentioned>","quantity":<number>}]. If no quantity is mentioned for an item, use 1.
+
+Email body:
+[[EMAIL BODY]]
+```
+- [ ] Add **Parse JSON** (Data Operation connector) → **Content**: the AI Builder action's text output → **Schema**: click **Generate from sample** and paste:
+```json
+[{"product":"Office Chair Pro","quantity":3}]
+```
+- [ ] Add **Initialize variable**: `Subtotal` (Number), initial value `0`
+- [ ] Add **Initialize variable**: `LineItemsSummary` (Array), initial value: empty array `[]`
+- [ ] Add **Apply to each** → Output: the Parse JSON action's body
+
+### 5.6 Inside the loop — look up each item and accumulate totals
+- [ ] Add **Get items** (SharePoint) → List: `Product Catalog`, Filter Query:
+```
+substringof(item()?['product'], ProductName)
+```
+- [ ] Add **Condition**: `@greater(length(body('Get_items')?['value']), 0)`
+- [ ] **Yes branch:**
+  - Add **Compose** `LineTotal`: `mul(body('Get_items')?['value'][0]?['UnitPrice'], item()?['quantity'])`
+  - Add **Set variable**: `Subtotal` = `add(variables('Subtotal'), outputs('LineTotal'))`
+  - Add **Append to array variable**: `LineItemsSummary`, value:
+```
+concat(body('Get_items')?['value'][0]?['ProductName'], ' x ', string(item()?['quantity']), ' @ ₹', string(body('Get_items')?['value'][0]?['UnitPrice']), ' = ₹', string(outputs('LineTotal')))
+```
+  - **No branch:** Append to array variable `LineItemsSummary`, value: `concat('Could not find a catalog match for: ', item()?['product'])` — so a mismatched item shows up visibly in the quote review rather than silently vanishing
+
+- [ ] **After the loop ends**, add **Compose** `GSTAmount`: `mul(variables('Subtotal'), 0.18)` *(simplification: this applies a flat 18% at the order level rather than per-line GSTPercent, since every catalog item currently carries the same rate — flag this as a simplification if the catalog ever has mixed GST rates in the future)*
+- [ ] Add **Compose** `Total`: `add(variables('Subtotal'), outputs('GSTAmount'))`
+- [ ] Add **Compose** `LineItemsText`: `join(variables('LineItemsSummary'), '\n')`
 - [ ] Add **Compose** `QuoteRef`, value:
 ```
 concat('CSQ-', formatDateTime(utcNow(), 'yyyyMMdd'), '-', substring(replace(guid(),'-',''), 0, 4))
@@ -418,22 +483,21 @@ concat('CSQ-', formatDateTime(utcNow(), 'yyyyMMdd'), '-', substring(replace(guid
 formatDateTime(addDays(utcNow(), 30), 'MMMM dd, yyyy')
 ```
 
-### 5.5 Generate the quote with AI Builder
+### 5.7 Generate the quote with AI Builder
 - [ ] Add step: search `AI Builder`, select **Create text with GPT using a prompt**
-- [ ] Paste this into the prompt field, replacing each `[[...]]` with the matching dynamic content token from the picker (click into the prompt box, then use "Add dynamic content" to insert each value at that exact spot):
+- [ ] Prompt (insert dynamic content at each `[[...]]`):
 ```
 Write a professional B2B sales quote reply email from Contoso Supplies Ltd.
 
 Address the email to [[SenderName]].
 
-Include a formatted quote table with these exact values - do not alter any numbers:
-- Product: [[ProductName from Get items]]
-- SKU: [[SKU from Get items]]
-- Quantity: 3
-- Unit Price: $[[UnitPrice from Get items]]
-- Line Total: $[[LineTotal]]
-- GST (10%): $[[GSTAmount]]
-- Grand Total: $[[Total]]
+Include a formatted quote table using these exact line items - do not alter any numbers:
+[[LineItemsText]]
+
+Then show:
+- Subtotal: ₹[[Subtotal]]
+- GST (18%): ₹[[GSTAmount]]
+- Grand Total: ₹[[Total]]
 
 Include:
 - Quote Reference Number: [[QuoteRef]]
@@ -449,22 +513,25 @@ Tone: professional, concise, confident - like an experienced B2B salesperson, no
 ```
 - [ ] Save the AI output into a variable or reference its output directly in the next step
 
-### 5.6 Create the Outlook draft
+### 5.8 Create the Outlook draft
 - [ ] Add **Create a draft (V2)** (Office 365 Outlook connector)
 - [ ] **To**: `variables('SenderEmail')`
 - [ ] **Subject**: 
 ```
 concat('Quote Ref: ', outputs('QuoteRef'), ' - Contoso Supplies Ltd')
 ```
-- [ ] **Body**: the text output from the AI Builder action in 5.5
+- [ ] **Body**: the text output from the AI Builder action in 5.7
 - [ ] Save the flow, turn it on
 
-### 5.7 Live end-to-end test
+### 5.9 Live end-to-end test
 - [ ] Start a stopwatch
-- [ ] From the monitored inbox account, **send an email to itself**: Subject `Quote Request - Office Chairs`, Body: `Hi, could I get a quote for 3 Office Chair Pro units? Thanks.`
-- [ ] Watch Power Automate → **Run history** for this flow, confirm it triggers (proves the condition fix in 5.2 works)
-- [ ] Stop the stopwatch when the draft appears in Outlook Drafts (`https://outlook.office.com` → Drafts folder)
-- [ ] Open the draft, confirm: correct recipient, quote reference present and formatted like `CSQ-YYYYMMDD-XXXX`, pricing table shows SKU CS-001 / $299 / qty 3 / $897 line total / $89.70 GST / $986.70 total, valid-until date ~30 days out, Net 30 terms, 5-7 day delivery, signature block present
+- [ ] From the monitored inbox account, **send an email to itself** with a multi-item request, matching the confirmed reference scenario: Subject `Quote Request - Office Furniture`, Body: `Hi, could I get a quote for 3 Office Chair Pro and 2 Adjustable Standing Desk? Thanks.`
+- [ ] Watch Power Automate → **Run history**, confirm it triggers
+- [ ] Confirm the Teams confirmation card appears in your 1:1 chat with Flow bot — click **Approve**
+- [ ] Confirm the flow continues past the confirmation condition and completes
+- [ ] Stop the stopwatch when the draft appears in Outlook Drafts
+- [ ] Open the draft, confirm: correct recipient, quote reference formatted like `CSQ-YYYYMMDD-XXXX`, **both** line items present (Office Chair Pro x3 and Adjustable Standing Desk x2) with correct per-line math, correct Subtotal/GST(18%)/Total across both items, valid-until date ~30 days out, Net 30 terms, 5-7 day delivery, signature block present
+- [ ] Also test rejecting the confirmation card (click nothing / a hypothetical "reject" if you add one, or just don't approve) and confirm the flow correctly stops without drafting anything
 - [ ] Read the draft as if you were the customer — would you send this?
 
 ---
@@ -475,10 +542,7 @@ concat('Quote Ref: ', outputs('QuoteRef'), ' - Contoso Supplies Ltd')
 
 **Build location:** same guidance as Challenge 4 — try Agent Flows natively in Copilot Studio first for the scheduled checker (recurrence triggers are a documented, supported Agent Flow trigger type, less exotic than the Outlook event trigger), and fall back to classic Power Automate at `https://make.powerautomate.com` if you hit a wall with the Adaptive Card action or the child-flow/HTTP-webhook pieces not being available in your tenant's Agent Flows designer yet.
 
-**Teams channel limit — checked, not a real constraint.** Current Microsoft-documented limit is 1,000 channels per team (up to 30 private). Since each participant works in their own isolated sandbox tenant and creates exactly one channel, this is nowhere close to being hit — no action needed here.
-
-### 6.1 Create a Teams channel for alerts
-- [ ] In Microsoft Teams, go to an existing team (or create one), click **+ Add channel**, name it `Contoso Sales Alerts`
+**Design change — matches the confirmed reference:** overdue-invoice alerts now post as a **1:1 Teams DM to the salesperson** (same "Chat with Flow bot" pattern used in Challenge 4's confirmation card), not to a shared `Contoso Sales Alerts` channel. This means the channel-creation step from earlier drafts is no longer needed — skip it. (The Teams channel limit research from earlier is now moot for this specific alert, though it's still good to know it was never a real constraint.)
 
 ### 6.2 Build the scheduled checker flow
 - [ ] Try first in Copilot Studio: **Contoso Q2C Assistant** → **Flows** → **+ Add a flow** → trigger: **Schedule** / **Recurrence**, name `Q2C - Overdue Invoice Checker`
@@ -502,7 +566,7 @@ Status eq 'Open'
 div(sub(ticks(utcNow()), ticks(items('Apply_to_each')?['DueDate'])), 864000000000)
 ```
 - [ ] Add **Post adaptive card and wait for a response** (Microsoft Teams connector)
-- [ ] Post as: Flow bot (or your choice); Post in: **Channel**; Team: your team; Channel: `Contoso Sales Alerts`
+- [ ] **Post as**: Flow bot; **Post in**: **Chat with Flow bot** (1:1, matching the confirmed reference — not a channel); **Recipient**: the salesperson's own account
 - [ ] Switch the Adaptive Card field to raw JSON entry and paste (insert each `@{...}` token via dynamic content, or type them directly if the field accepts raw expressions):
 ```json
 {
@@ -520,7 +584,7 @@ div(sub(ticks(utcNow()), ticks(items('Apply_to_each')?['DueDate'])), 86400000000
       "type": "FactSet",
       "facts": [
         { "title": "Invoice Number:", "value": "@{items('Apply_to_each')?['InvoiceNumber']}" },
-        { "title": "Amount:", "value": "$@{items('Apply_to_each')?['Amount']}" },
+        { "title": "Amount:", "value": "₹@{items('Apply_to_each')?['Amount']}" },
         { "title": "Days Overdue:", "value": "@{outputs('DaysOverdue')}" }
       ]
     }
@@ -557,7 +621,7 @@ div(sub(ticks(utcNow()), ticks(items('Apply_to_each')?['DueDate'])), 86400000000
 - [ ] Add inputs: `CustomerName` (Text), `InvoiceNumber` (Text), `Amount` (Number)
 - [ ] Add **AI Builder: Create text with GPT using a prompt**:
 ```
-Write a polite, professional payment reminder email for [[CustomerName]] regarding overdue invoice [[InvoiceNumber]] for $[[Amount]]. Keep it courteous but clear that payment is due. Close with a Contoso Supplies Ltd signature block. Do not threaten any action - just a friendly, professional nudge.
+Write a polite, professional payment reminder email for [[CustomerName]] regarding overdue invoice [[InvoiceNumber]] for ₹[[Amount]]. Keep it courteous but clear that payment is due. Close with a Contoso Supplies Ltd signature block. Do not threaten any action - just a friendly, professional nudge.
 ```
 - [ ] Add **Create a draft (V2)**: To: (use the monitored inbox's own address as a test placeholder), Subject: `concat('Payment Reminder - Invoice ', triggerBody()['text_1'])` *(adjust field name to match your actual InvoiceNumber input)*, Body: AI output
 - [ ] **Save and Publish** the child flow — it will not appear in the parent flow's picker until published
@@ -581,11 +645,11 @@ concat("InvoiceNumber eq '", triggerBody()?['InvoiceNumber'], "'")
 *(Build this as an expression in the Filter Query field, not plain text — it needs to evaluate the concat.)*
 - [ ] Add **Update item**: Id: `first(body('Get_items')?['value'])?['ID']`, Status: `Paid`
 - [ ] Add **Send an email (V2)**: To: (test placeholder / monitored inbox), Subject: `concat('Payment Received - Invoice ', triggerBody()?['InvoiceNumber'])`, Body: `Thank you, we've received your payment for invoice ` + InvoiceNumber + `.`
-- [ ] Add **Post message in a chat or channel** (Teams): Channel `Contoso Sales Alerts`, Message: `Payment received for invoice @{triggerBody()?['InvoiceNumber']} from @{triggerBody()?['CustomerName']}. Thank you!`
+- [ ] Add **Post message in a chat or channel** (Teams): Post in **Chat**, recipient: the salesperson's own account (matching the DM pattern used elsewhere), Message: `Payment received for invoice @{triggerBody()?['InvoiceNumber']} from @{triggerBody()?['CustomerName']}. Thank you!`
 - [ ] Save. Click into the trigger card and **copy the generated HTTP POST URL immediately** — it's shown once.
 
 ### 6.7 Test everything
-- [ ] Manually run the scheduled checker flow, confirm cards post in `Contoso Sales Alerts` for the genuinely overdue rows from your 15-row Invoice Tracker dataset (8 rows should qualify — confirm it's 8, not 10, not 15)
+- [ ] Manually run the scheduled checker flow, confirm cards post in your 1:1 Teams chat for the genuinely overdue rows from your 15-row Invoice Tracker dataset (8 rows should qualify — confirm it's 8, not 10, not 15)
 - [ ] Click **Mark Resolved** on one card, confirm the matching SharePoint row updates
 - [ ] Click **Draft Reminder Email** on another, confirm a draft appears in Outlook
 - [ ] Test the webhook:
@@ -593,6 +657,25 @@ concat("InvoiceNumber eq '", triggerBody()?['InvoiceNumber'], "'")
 Invoke-WebRequest -Uri "[your-flow-url]" -Method POST -ContentType "application/json" -Body '{"InvoiceNumber":"INV-2025-001","CustomerName":"Acme Corp"}'
 ```
 - [ ] Confirm the matching Invoice Tracker row updates to `Paid`, a confirmation draft/email appears, and a Teams message posts
+
+### 6.8 NEW — Follow-up topic for ad hoc requests (matches the confirmed reference's conversational follow-up)
+
+The confirmed reference shows the salesperson asking Copilot an ad hoc follow-up after payment lands — "please also send a payment acknowledgement to Priya" — rather than everything happening in one fixed automated pipeline. True open-ended agentic follow-up is out of scope for a beginner-level hackathon, but this is approximated cleanly by adding **one more topic** to the same Copilot Studio agent, so the user experience still feels conversational even though it's deterministic underneath, like everything else in this build.
+
+- [ ] In Copilot Studio → **Contoso Q2C Assistant** → **Topics** → **+ Add a topic** → **From blank**
+- [ ] Name it `Send Payment Acknowledgement`
+- [ ] Click the trigger node's **Description** field, paste:
+```
+This topic handles requests to send a payment acknowledgement or receipt to a customer for a specific invoice - for example, when someone asks to notify a customer that their payment has been received, or asks to send an acknowledgement for an invoice.
+```
+- [ ] Add a **Question** node: text `Which invoice number is this for?`, save response into variable `InvoiceNumberForAck` (Text)
+- [ ] Build a small supporting flow `Q2C - Send Payment Acknowledgement` (same pattern as earlier flows: trigger **Run a flow from Copilot**, input `InvoiceNumber` Text) that does:
+  - **Get items** (SharePoint) → List: `Invoice Tracker`, Filter Query: `concat("InvoiceNumber eq '", triggerBody()?['InvoiceNumber'], "'")`
+  - **Send an email (V2)**: To: (test placeholder / monitored inbox), Subject: `concat('Payment Acknowledgement - Invoice ', triggerBody()?['InvoiceNumber'])`, Body: a short acknowledgement referencing the customer name and amount from the retrieved record
+  - **Respond to Copilot Studio**: output `Confirmation` (Text) = `concat('Sent a payment acknowledgement for invoice ', triggerBody()?['InvoiceNumber'], '.')`
+- [ ] Back in the topic, add **Call an action**, select this flow, map `InvoiceNumber` → `InvoiceNumberForAck`
+- [ ] Add a **Message** node using the flow's `Confirmation` output, e.g. `{Confirmation}`
+- [ ] Test: publish, then in Test bot or Teams, type something like *"please send a payment acknowledgement for INV-2025-001"* and confirm the topic fires and the flow completes
 
 ---
 
@@ -654,9 +737,14 @@ Invoke-WebRequest -Uri "[your-flow-url]" -Method POST -ContentType "application/
 2. ~~AI Builder credits~~ — **Resolved**, covered by license.
 3. ~~SharePoint provisioning~~ — **Resolved**, CSV import method with post-import column-type fix-up.
 4. ~~Test email methodology~~ — **Resolved**, self-send with the sender-exclusion condition removed from Challenge 4 (Section 5.2 above).
-5. **Challenge 4's inline pricing lookup (5.4) is hardcoded to one product/quantity for the first working build**, matching the lab's own stated approach of getting a single-product version working before generalizing. Genuine multi-format, multi-product parsing is explicitly deferred to Challenge 6 (7.4) — confirm this progression reads clearly to a participant and doesn't feel like a shortcut you're hiding.
+5. ~~Challenge 4's inline pricing lookup was hardcoded to one product/quantity~~ — **Resolved.** Challenge 4 now does genuine multi-item extraction (AI Builder JSON parsing + Apply-to-each loop, Sections 5.5/5.6) instead of deferring this to Challenge 6. This is real added scope versus the original design — confirmed with you and built in, not deferred.
 6. Dataset scaled to 15/15 rows with a deliberate overdue/not-due/resolved/paid mix — use this to verify Challenge 5's filter logic for real, not just confirm data loaded.
-7. **Content mismatch confirmed live: challenge-2.md's "trigger phrases" instructions assume Classic orchestration, but a freshly created agent defaults to Generative AI orchestration**, where topics use a semantic Description field instead — there's no trigger-phrases panel at all unless you manually switch modes. Section 3.4 above now covers both paths, but challenge-2.md itself should be updated before shipping so participants aren't confused when the UI doesn't match the doc.
+7. **Content mismatch confirmed live: challenge-2.md's "trigger phrases" instructions assume Classic orchestration, but a freshly created agent defaults to Generative AI orchestration**, where topics use a semantic Description field instead — there's no trigger-phrases panel at all unless you manually switch modes. Section 3.5 above now covers both paths, but challenge-2.md itself should be updated before shipping so participants aren't confused when the UI doesn't match the doc.
 8. **Content mismatch confirmed live: challenge-3/4/5.md send participants to the Power Automate portal, but Copilot Studio now has native Agent Flows** built directly in the Copilot Studio designer, consuming Copilot Studio capacity rather than a separate Power Automate license. Challenge 3's pattern (Run a flow from Copilot trigger) is explicitly documented as a supported Agent Flow tool pattern — build it natively. Challenges 4/5 use less common trigger types (Outlook email arrival, scheduled recurrence) where Agent Flow support is either newer or has reported reliability caveats in preview — build natively first, but keep classic Power Automate as a tested fallback if the event trigger misbehaves. All three challenge docs should be revised to lead with the native path rather than sending participants straight to a separate portal.
-9. ~~Teams channel creation limit~~ — **Checked, not a real risk.** Current documented limit is 1,000 channels per team; each participant's isolated sandbox only ever needs 1.
+9. ~~Teams channel creation limit~~ — **Checked, and now moot.** Current documented limit is 1,000 channels per team, so it was never a real constraint — and it's a non-issue either way now that Challenge 4/5 alerts moved to 1:1 Teams DMs instead of a shared channel, matching the confirmed reference.
 10. **Design fix applied: Challenge 2's product question is now bound to a live SharePoint-fetched list ("Options from a list variable") via a small new flow (`Q2C - Get Product Names`), instead of free text or a manually-typed static list.** This solves the exact-match problem (button click, no typo possible) with zero manual maintenance if the catalog changes. It does add a real scope question worth resolving before shipping: this flow-building step now sits inside Challenge 2, slightly overlapping with Challenge 3's own flow content — decide whether Challenge 2 owns it directly or whether it should be introduced as an early part of Challenge 3 instead. Also confirm live whether the resulting `ProductName` variable comes through as plain Text or a choice-type needing the `Text()` conversion fix — don't assume either way.
+11. **GST corrected from 10% to 18%, currency changed from $ to ₹**, matching the confirmed Microsoft reference exactly. This touched the data files, the Copilot Studio system instructions, every worked example number in Challenges 3/4, and every message/prompt template. Re-verify no stray 10%/$ references were missed if you make further edits to this doc.
+12. **New: Challenge 4 now includes a confirmation Adaptive Card (1:1 Teams DM, Approve/View Catalog) before pricing lookup or drafting begins**, matching the confirmed reference's "shall I check pricing and draft a quote?" step. This reuses the same "Post adaptive card and wait for a response" pattern from Challenge 5, just targeted at a person instead of a channel — no new technique, but real added build and test time.
+13. **New: Challenge 5 now includes a follow-up conversational topic ("Send Payment Acknowledgement", Section 6.8)** approximating the confirmed reference's ad hoc "please also send an acknowledgement" moment. This is a deterministic topic-plus-flow, not true open-ended agentic reasoning — good enough to feel conversational without requiring custom engine agent complexity, but worth being explicit with participants that it's a fixed, invokable topic rather than the agent improvising freely.
+14. **PDF quote attachment was explicitly descoped per your decision** — the confirmed reference's "Attach quote PDF" button is not built. If Microsoft specifically checks for this, flag it now rather than at final review; otherwise this is a reasonable, deliberate cut given the hackathon's time budget.
+15. **Net effect on Challenge 4's time budget:** between the confirmation card, multi-item parsing/loop, and the extra AI Builder call, Challenge 4 is meaningfully bigger than its original 45-minute scope. Time your actual build-and-test pass for this challenge specifically and be honest about whether 45 minutes is still realistic for a beginner participant, or whether the time budget or challenge structure needs to change.
