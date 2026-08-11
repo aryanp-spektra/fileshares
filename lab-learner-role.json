@@ -1,0 +1,100 @@
+{
+  "Name": "Spektra CloudLabs - Agentic AI Lab Learner",
+  "Id": null,
+  "IsCustom": true,
+  "Description": "Learner role for the 'Building Intelligent Multi-Agent Systems with Azure AI Services' lab. Grants full control over only the resource types the lab exercises actually require the learner to change (Function App, App Service plan, API connections, Logic App workflow, storage, Log Analytics), read-only visibility of the locked infrastructure (VM, VNet, NIC, NSG, public IP, Foundry project), and key retrieval on the AI accounts. Creation of VMs, VNets and extra Foundry projects, the model allowlist and the TPM cap are enforced separately by Azure Policy, not by this role.",
+  "Actions": [
+    "Microsoft.Authorization/*/read",
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Resources/deployments/*",
+
+    "Microsoft.CognitiveServices/accounts/read",
+    "Microsoft.CognitiveServices/accounts/listKeys/action",
+    "Microsoft.CognitiveServices/accounts/deployments/read",
+    "Microsoft.CognitiveServices/accounts/raiPolicies/read",
+    "Microsoft.CognitiveServices/accounts/raiBlocklists/read",
+    "Microsoft.CognitiveServices/accounts/projects/read",
+    "Microsoft.CognitiveServices/accounts/commitmentPlans/read",
+
+    "Microsoft.Web/sites/*",
+    "Microsoft.Web/serverFarms/*",
+    "Microsoft.Web/connections/*",
+    "Microsoft.Web/certificates/read",
+
+    "Microsoft.Logic/workflows/*",
+
+    "Microsoft.OperationalInsights/workspaces/read",
+    "Microsoft.OperationalInsights/workspaces/query/read",
+    "Microsoft.OperationalInsights/workspaces/query/*/read",
+    "Microsoft.OperationalInsights/workspaces/analytics/query/action",
+    "Microsoft.OperationalInsights/workspaces/analytics/query/schema/read",
+    "Microsoft.OperationalInsights/workspaces/api/query/action",
+    "Microsoft.OperationalInsights/workspaces/api/query/schema/read",
+    "Microsoft.OperationalInsights/workspaces/search/action",
+    "Microsoft.Insights/*/read",
+
+    "Microsoft.Storage/storageAccounts/read",
+    "Microsoft.Storage/storageAccounts/listKeys/action",
+    "Microsoft.Storage/storageAccounts/blobServices/*",
+
+    "Microsoft.Compute/virtualMachines/read",
+    "Microsoft.Compute/virtualMachines/instanceView/read",
+    "Microsoft.Compute/disks/read",
+    "Microsoft.Network/virtualNetworks/read",
+    "Microsoft.Network/networkInterfaces/read",
+    "Microsoft.Network/networkSecurityGroups/read",
+    "Microsoft.Network/publicIPAddresses/read"
+  ],
+  "NotActions": [
+    "Microsoft.CognitiveServices/accounts/write",
+    "Microsoft.CognitiveServices/accounts/delete",
+    "Microsoft.CognitiveServices/accounts/deployments/write",
+    "Microsoft.CognitiveServices/accounts/deployments/delete",
+    "Microsoft.CognitiveServices/accounts/raiPolicies/write",
+    "Microsoft.CognitiveServices/accounts/raiPolicies/delete",
+    "Microsoft.CognitiveServices/accounts/raiBlocklists/write",
+    "Microsoft.CognitiveServices/accounts/raiBlocklists/delete",
+    "Microsoft.CognitiveServices/accounts/projects/write",
+    "Microsoft.CognitiveServices/accounts/projects/delete",
+    "Microsoft.CognitiveServices/accounts/commitmentPlans/write",
+
+    "Microsoft.Web/sites/delete",
+    "Microsoft.Web/serverFarms/delete",
+    "Microsoft.Web/connections/delete",
+    "Microsoft.Logic/workflows/delete",
+    "Microsoft.Storage/storageAccounts/delete",
+    "Microsoft.OperationalInsights/workspaces/delete",
+
+    "Microsoft.Authorization/roleAssignments/write",
+    "Microsoft.Authorization/roleAssignments/delete",
+    "Microsoft.Authorization/roleDefinitions/write",
+    "Microsoft.Authorization/roleDefinitions/delete",
+    "Microsoft.Authorization/policyAssignments/write",
+    "Microsoft.Authorization/policyAssignments/delete",
+    "Microsoft.Authorization/policyDefinitions/write",
+    "Microsoft.Authorization/policyDefinitions/delete",
+    "Microsoft.Authorization/policyExemptions/write",
+    "Microsoft.Authorization/policyExemptions/delete",
+    "Microsoft.Authorization/locks/write",
+    "Microsoft.Authorization/locks/delete"
+  ],
+  "DataActions": [
+    "Microsoft.CognitiveServices/accounts/OpenAI/*/read",
+    "Microsoft.CognitiveServices/accounts/OpenAI/deployments/audio/action",
+    "Microsoft.CognitiveServices/accounts/OpenAI/deployments/search/action",
+    "Microsoft.CognitiveServices/accounts/OpenAI/deployments/completions/action",
+    "Microsoft.CognitiveServices/accounts/OpenAI/deployments/chat/completions/action",
+    "Microsoft.CognitiveServices/accounts/OpenAI/deployments/extensions/chat/completions/action",
+    "Microsoft.CognitiveServices/accounts/OpenAI/deployments/embeddings/action",
+    "Microsoft.CognitiveServices/accounts/OpenAI/images/generations/action",
+    "Microsoft.CognitiveServices/accounts/ComputerVision/*/read",
+    "Microsoft.CognitiveServices/accounts/ComputerVision/imageanalysis:analyze/action"
+  ],
+  "NotDataActions": [
+    "Microsoft.CognitiveServices/accounts/OpenAI/files/*",
+    "Microsoft.CognitiveServices/accounts/OpenAI/fine-tunes/*",
+    "Microsoft.CognitiveServices/accounts/OpenAI/fine_tuning/*",
+    "Microsoft.CognitiveServices/accounts/OpenAI/models/*/write",
+    "Microsoft.CognitiveServices/accounts/OpenAI/stored-completions/*"
+  ]
+}
