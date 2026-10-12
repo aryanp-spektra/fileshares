@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "DeploymentID": {
+      "type": "string"
+    },
+    "AzureUserName": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure user UPN (email), set as the Fabric capacity administrator."
+      }
+    }
+  },
+  "variables": {
+    "location": "[resourceGroup().location]",
+    "fabricCapacityName": "[toLower(concat('capacity', parameters('DeploymentID')))]",
+    "fabricCapacitySku": "F2"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Fabric/capacities",
+      "apiVersion": "2023-11-01",
+      "name": "[variables('fabricCapacityName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "[variables('fabricCapacitySku')]",
+        "tier": "Fabric"
+      },
+      "properties": {
+        "administration": {
+          "members": [
+            "[parameters('AzureUserName')]"
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "Deployment ID": {
+      "type": "string",
+      "value": "[parameters('DeploymentID')]"
+    },
+    "Fabric Capacity Name": {
+      "type": "string",
+      "value": "[variables('fabricCapacityName')]"
+    }
+  }
+}
